@@ -117,7 +117,7 @@ val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
 # Update the device assignment for the model and tensors in your main.py
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = MyModel().to(device)
+model = MyModel(num_attributes).to(device)
 
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
