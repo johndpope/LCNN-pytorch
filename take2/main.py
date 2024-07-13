@@ -1,14 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from datasets import load_dataset
 from torchvision import transforms
 import os
+from tqdm import tqdm
 
 from lookup_conv2d import LookupConv2d
-from torch.utils.data import DataLoader, random_split
-
 
 class MyModel(nn.Module):
     def __init__(self, num_attributes):
@@ -40,6 +39,7 @@ def transform_images(examples):
     return examples
 
 # Apply the transformations to the dataset
+print("Transforming images...")
 dataset = dataset.map(transform_images, batched=True, remove_columns=['image'])
 
 # Get the list of attribute columns
@@ -59,8 +59,6 @@ train_dataset, val_dataset = random_split(train_val_data, [train_size, val_size]
 batch_size = 32
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
-# test_dataloader = DataLoader(dataset['test'], batch_size=batch_size)
-
 
 # Initialize model, criterion, and optimizer
 model = MyModel(num_attributes).cuda()
@@ -71,7 +69,8 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 def train(model, dataloader, criterion, optimizer, epoch):
     model.train()
     running_loss = 0.0
-    for i, batch in enumerate(dataloader):
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc=f"Epoch {epoch+1}")
+    for i, batch in pbar:
         inputs = batch['pixel_values'].cuda()
         labels = torch.stack([batch[col] for col in attribute_columns], dim=1).float().cuda()
         
@@ -82,30 +81,31 @@ def train(model, dataloader, criterion, optimizer, epoch):
         optimizer.step()
         
         running_loss += loss.item()
-        if i % 100 == 99:
-            print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 100:.3f}')
-            running_loss = 0.0
+        pbar.set_postfix({'loss': f'{running_loss / (i+1):.3f}'})
 
 # Validation function
 def validate(model, dataloader, criterion):
     model.eval()
     total_loss = 0.0
     with torch.no_grad():
-        for batch in dataloader:
+        pbar = tqdm(dataloader, desc="Validating")
+        for batch in pbar:
             inputs = batch['pixel_values'].cuda()
             labels = torch.stack([batch[col] for col in attribute_columns], dim=1).float().cuda()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             total_loss += loss.item()
+            pbar.set_postfix({'loss': f'{total_loss / (pbar.n+1):.3f}'})
     return total_loss / len(dataloader)
 
 # Training loop with saving
 num_epochs = 10
 best_val_loss = float('inf')
 for epoch in range(num_epochs):
+    print(f"\nEpoch {epoch + 1}/{num_epochs}")
     train(model, train_dataloader, criterion, optimizer, epoch)
     val_loss = validate(model, val_dataloader, criterion)
-    print(f'Epoch {epoch + 1}, Validation Loss: {val_loss:.4f}')
+    print(f'Validation Loss: {val_loss:.4f}')
     
     if val_loss < best_val_loss:
         best_val_loss = val_loss
@@ -123,7 +123,8 @@ def inference(model, dataloader):
     all_preds = []
     all_labels = []
     with torch.no_grad():
-        for batch in dataloader:
+        pbar = tqdm(dataloader, desc="Inference")
+        for batch in pbar:
             inputs = batch['pixel_values'].cuda()
             labels = torch.stack([batch[col] for col in attribute_columns], dim=1).float().cuda()
             outputs = model(inputs)
@@ -138,6 +139,7 @@ if os.path.exists('best_model.pth'):
     model.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded best model from epoch {checkpoint['epoch']} with validation loss: {checkpoint['loss']:.4f}")
 
+print("Running inference...")
 test_preds, test_labels = inference(model, val_dataloader)
 
 # Calculate accuracy for each attribute
