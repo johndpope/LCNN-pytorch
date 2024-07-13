@@ -115,8 +115,10 @@ batch_size = 32
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
-# Initialize model, criterion, and optimizer
-model = MyModel(num_attributes).cuda()
+# Update the device assignment for the model and tensors in your main.py
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = MyModel().to(device)
+
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
