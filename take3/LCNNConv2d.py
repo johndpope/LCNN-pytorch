@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LCNNConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dictionary_size=100, sparsity=0.5):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dictionary_size=100, sparsity=3):
         super(LCNNConv2d, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
