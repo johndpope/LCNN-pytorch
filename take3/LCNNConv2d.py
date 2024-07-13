@@ -69,4 +69,4 @@ class LCNNConv2d(nn.Module):
     def extra_repr(self):
         return (f'in_channels={self.in_channels}, out_channels={self.out_channels}, '
                 f'kernel_size={self.kernel_size}, stride={self.stride}, padding={self.padding}, '
-                f'dictionary_size={self.dictionary_size}, sparsity={self.sparsity}')g
+                f'dictionary_size={self.dictionary_size}, sparsity={self.sparsity}')
