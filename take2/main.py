@@ -7,14 +7,16 @@ from torchvision import transforms
 import os
 
 from lookup_conv2d import LookupConv2d
+from torch.utils.data import DataLoader, random_split
+
 
 class MyModel(nn.Module):
-    def __init__(self):
+    def __init__(self, num_attributes):
         super(MyModel, self).__init__()
         self.conv1 = LookupConv2d(3, 64, kernel_size=3, stride=1, padding=1, dictionary_size=100, sparsity=3)
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc = nn.Linear(64 * 112 * 112, 40)  # Adjusted for 224x224 input and 40 attributes
+        self.fc = nn.Linear(64 * 112 * 112, num_attributes)
 
     def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
@@ -23,7 +25,7 @@ class MyModel(nn.Module):
         return x
 
 # Load the dataset
-dataset = load_dataset("lansinuote/gen.1.celeba", cache_dir="./cache")
+dataset = load_dataset("lansinuote/gen.1.celeba")
 
 # Define image transformations
 transform = transforms.Compose([
@@ -40,18 +42,29 @@ def transform_images(examples):
 # Apply the transformations to the dataset
 dataset = dataset.map(transform_images, batched=True, remove_columns=['image'])
 
+# Get the list of attribute columns
+attribute_columns = [col for col in dataset['train'].column_names if col != 'pixel_values']
+num_attributes = len(attribute_columns)
+
 # Set the format of the dataset to PyTorch
-dataset.set_format(type='torch', columns=['pixel_values', 'attributes'])
+dataset.set_format(type='torch', columns=['pixel_values'] + attribute_columns)
+
+# Split the training set into train and validation
+train_val_data = dataset['train']
+train_size = int(0.8 * len(train_val_data))
+val_size = len(train_val_data) - train_size
+train_dataset, val_dataset = random_split(train_val_data, [train_size, val_size])
 
 # Create DataLoaders
 batch_size = 32
-train_dataloader = DataLoader(dataset['train'], batch_size=batch_size, shuffle=True)
-val_dataloader = DataLoader(dataset['validation'], batch_size=batch_size)
-test_dataloader = DataLoader(dataset['test'], batch_size=batch_size)
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
+# test_dataloader = DataLoader(dataset['test'], batch_size=batch_size)
+
 
 # Initialize model, criterion, and optimizer
-model = MyModel().cuda()
-criterion = nn.BCEWithLogitsLoss()  # Binary Cross Entropy with Logits for multi-label classification
+model = MyModel(num_attributes).cuda()
+criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training function
@@ -60,7 +73,7 @@ def train(model, dataloader, criterion, optimizer, epoch):
     running_loss = 0.0
     for i, batch in enumerate(dataloader):
         inputs = batch['pixel_values'].cuda()
-        labels = batch['attributes'].float().cuda()  # Convert to float for BCE loss
+        labels = torch.stack([batch[col] for col in attribute_columns], dim=1).float().cuda()
         
         optimizer.zero_grad()
         outputs = model(inputs)
@@ -80,7 +93,7 @@ def validate(model, dataloader, criterion):
     with torch.no_grad():
         for batch in dataloader:
             inputs = batch['pixel_values'].cuda()
-            labels = batch['attributes'].float().cuda()
+            labels = torch.stack([batch[col] for col in attribute_columns], dim=1).float().cuda()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             total_loss += loss.item()
@@ -94,7 +107,6 @@ for epoch in range(num_epochs):
     val_loss = validate(model, val_dataloader, criterion)
     print(f'Epoch {epoch + 1}, Validation Loss: {val_loss:.4f}')
     
-    # Save the model if it's the best so far
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         torch.save({
@@ -105,7 +117,7 @@ for epoch in range(num_epochs):
         }, 'best_model.pth')
         print(f'Saved new best model with validation loss: {best_val_loss:.4f}')
 
-# Inference code
+# Inference function
 def inference(model, dataloader):
     model.eval()
     all_preds = []
@@ -113,26 +125,25 @@ def inference(model, dataloader):
     with torch.no_grad():
         for batch in dataloader:
             inputs = batch['pixel_values'].cuda()
-            labels = batch['attributes'].cuda()
+            labels = torch.stack([batch[col] for col in attribute_columns], dim=1).float().cuda()
             outputs = model(inputs)
-            preds = (torch.sigmoid(outputs) > 0.5).float()  # Convert to binary predictions
+            preds = (torch.sigmoid(outputs) > 0.5).float()
             all_preds.append(preds.cpu())
             all_labels.append(labels.cpu())
     return torch.cat(all_preds), torch.cat(all_labels)
 
-# Load the best model
+# Load the best model and run inference
 if os.path.exists('best_model.pth'):
     checkpoint = torch.load('best_model.pth')
     model.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded best model from epoch {checkpoint['epoch']} with validation loss: {checkpoint['loss']:.4f}")
 
-# Run inference on test set
-test_preds, test_labels = inference(model, test_dataloader)
+test_preds, test_labels = inference(model, val_dataloader)
 
 # Calculate accuracy for each attribute
 accuracy = (test_preds == test_labels).float().mean(dim=0)
-for i, acc in enumerate(accuracy):
-    print(f"Attribute {i} accuracy: {acc:.4f}")
+for attr, acc in zip(attribute_columns, accuracy):
+    print(f"{attr} accuracy: {acc:.4f}")
 
 # Overall accuracy
 overall_accuracy = accuracy.mean()
