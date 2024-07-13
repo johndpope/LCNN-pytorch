@@ -57,7 +57,7 @@ class LCNNConv2d(nn.Module):
         return output
 
     def enforce_sparsity(self):
-        k = int(self.dictionary_size * (1 - self.sparsity))
+        k = min(int(self.dictionary_size * (1 - self.sparsity)), self.dictionary_size)
         with torch.no_grad():
             values, indices = torch.topk(self.lookup_weights.abs(), k, dim=1, largest=True, sorted=False)
             mask = torch.zeros_like(self.lookup_weights, dtype=torch.bool).scatter_(1, indices, True)
@@ -65,8 +65,8 @@ class LCNNConv2d(nn.Module):
         
         print(f"Lookup weights shape after sparsity enforcement: {self.lookup_weights.shape}")
         print(f"Number of non-zero elements in lookup weights: {self.lookup_weights.nonzero().shape[0]}")
-
+        
     def extra_repr(self):
         return (f'in_channels={self.in_channels}, out_channels={self.out_channels}, '
                 f'kernel_size={self.kernel_size}, stride={self.stride}, padding={self.padding}, '
-                f'dictionary_size={self.dictionary_size}, sparsity={self.sparsity}')
+                f'dictionary_size={self.dictionary_size}, sparsity={self.sparsity}')g
