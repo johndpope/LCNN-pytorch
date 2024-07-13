@@ -23,7 +23,7 @@ class MyModel(nn.Module):
         return x
 
 # Load the dataset
-dataset = load_dataset("lansinuote/gen.1.celeba")
+dataset = load_dataset("lansinuote/gen.1.celeba", cache_dir="./cache")
 
 # Define image transformations
 transform = transforms.Compose([
