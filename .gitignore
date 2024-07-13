@@ -1,0 +1,9 @@
+
+take2/__pycache__/lookup_conv2d.cpython-311.pyc
+take2/build/temp.linux-x86_64-cpython-311/.ninja_deps
+*.ninja
+*.o
+*.so
+*.egg
+take2/sparse_conv2d_cuda.egg-info/PKG-INFO
+take2/sparse_conv2d_cuda.egg-info/SOURCES.txt

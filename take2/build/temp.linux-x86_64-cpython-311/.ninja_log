@@ -1,0 +1,4 @@
+# ninja log v5
+0	10367	1720895703957893768	/media/oem/12TB/LCNN-pytorch/take2/build/temp.linux-x86_64-cpython-311/sparse_conv2d_cuda.o	ceda352aa4bcae30
+8	9886	1720895995354029525	/media/oem/12TB/LCNN-pytorch/take2/build/temp.linux-x86_64-cpython-311/sparse_conv2d_cuda.o	ceda352aa4bcae30
+7	24534	1720896078268205330	/media/oem/12TB/LCNN-pytorch/take2/build/temp.linux-x86_64-cpython-311/sparse_conv2d_kernel.o	cd3b054681e7df9c
