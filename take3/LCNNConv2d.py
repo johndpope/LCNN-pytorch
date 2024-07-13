@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LCNNConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dictionary_size=100, sparsity=3):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dictionary_size=100, sparsity=0.5):
         super(LCNNConv2d, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -57,15 +57,29 @@ class LCNNConv2d(nn.Module):
         return output
 
     def enforce_sparsity(self):
-        k = min(int(self.dictionary_size * (1 - self.sparsity)), self.dictionary_size)
         with torch.no_grad():
-            values, indices = torch.topk(self.lookup_weights.abs(), k, dim=1, largest=True, sorted=False)
-            mask = torch.zeros_like(self.lookup_weights, dtype=torch.bool).scatter_(1, indices, True)
-            self.lookup_weights.masked_fill_(~mask, 0)
+            # Calculate the number of elements to keep based on sparsity
+            num_keep = int(self.lookup_weights.numel() * (1 - self.sparsity))
+            
+            # Flatten the lookup weights tensor
+            flat_weights = self.lookup_weights.view(-1)
+            
+            # Get the absolute values and indices of the flattened weights
+            abs_weights = torch.abs(flat_weights)
+            _, indices = torch.sort(abs_weights, descending=True)
+            
+            # Create a mask to keep the top num_keep elements
+            mask = torch.zeros_like(flat_weights, dtype=torch.bool)
+            mask[indices[:num_keep]] = True
+            
+            # Apply the mask to the flattened weights
+            flat_weights[~mask] = 0.0
+            
+            # Reshape the modified weights back to the original shape
+            self.lookup_weights.data = flat_weights.view(self.out_channels, self.dictionary_size)
         
         print(f"Lookup weights shape after sparsity enforcement: {self.lookup_weights.shape}")
         print(f"Number of non-zero elements in lookup weights: {self.lookup_weights.nonzero().shape[0]}")
-        
     def extra_repr(self):
         return (f'in_channels={self.in_channels}, out_channels={self.out_channels}, '
                 f'kernel_size={self.kernel_size}, stride={self.stride}, padding={self.padding}, '
