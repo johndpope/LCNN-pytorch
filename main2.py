@@ -65,76 +65,6 @@ void lookup_conv2d_forward(
 }
 ''', 'lookup_conv2d_forward')
 
-cuda_kernel_optimized = cp.RawKernel(r'''
-#include <cuda_fp16.h>
-
-extern "C" __global__
-void lookup_conv2d_forward_optimized(
-    const float* __restrict__ input,
-    const float* __restrict__ dictionary,
-    const long* __restrict__ lookup_indices,
-    const float* __restrict__ lookup_coefficients,
-    float* __restrict__ output,
-    int batch_size,
-    int in_channels,
-    int out_channels,
-    int height,
-    int width,
-    int kernel_size,
-    int dictionary_size,
-    int sparsity
-) {
-    extern __shared__ float shared_mem[];
-    float* shared_dict = shared_mem;
-    float* shared_coeff = &shared_mem[dictionary_size * kernel_size * kernel_size];
-
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int bx = blockIdx.x;
-    int by = blockIdx.y;
-
-    int h = by * blockDim.y + ty;
-    int w = bx * blockDim.x + tx;
-
-    if (h >= height || w >= width) return;
-
-    // Load dictionary and coefficients into shared memory
-    for (int i = threadIdx.x + threadIdx.y * blockDim.x; i < dictionary_size * kernel_size * kernel_size; i += blockDim.x * blockDim.y) {
-        shared_dict[i] = dictionary[i];
-    }
-    for (int i = threadIdx.x + threadIdx.y * blockDim.x; i < out_channels * sparsity; i += blockDim.x * blockDim.y) {
-        shared_coeff[i] = lookup_coefficients[i];
-    }
-    __syncthreads();
-
-    for (int b = 0; b < batch_size; ++b) {
-        for (int oc = 0; oc < out_channels; ++oc) {
-            float sum = 0.0f;
-            for (int s = 0; s < sparsity; ++s) {
-                int dict_idx = lookup_indices[oc * sparsity + s];
-                float coeff = shared_coeff[oc * sparsity + s];
-                
-                for (int kh = 0; kh < kernel_size; ++kh) {
-                    for (int kw = 0; kw < kernel_size; ++kw) {
-                        int ih = h + kh;
-                        int iw = w + kw;
-                        if (ih >= 0 && ih < height && iw >= 0 && iw < width) {
-                            for (int ic = 0; ic < in_channels; ++ic) {
-                                int input_idx = ((b * in_channels + ic) * height + ih) * width + iw;
-                                int dict_idx_full = (dict_idx * in_channels + ic) * kernel_size * kernel_size + kh * kernel_size + kw;
-                                sum += input[input_idx] * shared_dict[dict_idx_full] * coeff;
-                            }
-                        }
-                    }
-                }
-            }
-            int output_idx = ((b * out_channels + oc) * height + h) * width + w;
-            output[output_idx] = sum;
-        }
-    }
-}
-''', 'lookup_conv2d_forward_optimized')
-
 
 cuda_kernel_backward = cp.RawKernel(r'''
 extern "C" __global__
@@ -297,14 +227,9 @@ class LookupConv2dFunction(Function):
             if lookup_indices.min() < 0 or lookup_indices.max() >= dictionary_size:
                 raise ValueError(f"Lookup indices out of bounds. Min: {lookup_indices.min()}, Max: {lookup_indices.max()}, Dictionary size: {dictionary_size}")
 
-            shared_mem_size = (dictionary_size * kernel_size * kernel_size + out_channels * sparsity) * 4  # 4 bytes per float
-            block_size = (16, 16)
-            grid_size = ((out_width + block_size[0] - 1) // block_size[0],
-                        (out_height + block_size[1] - 1) // block_size[1])
-
-            cuda_kernel_optimized(
-                grid=grid_size,
-                block=block_size,
+            cuda_kernel(
+                grid=(blocks,),
+                block=(threads_per_block,),
                 args=(
                     input.data_ptr(),
                     dictionary.data_ptr(),
@@ -319,10 +244,8 @@ class LookupConv2dFunction(Function):
                     kernel_size,
                     dictionary_size,
                     sparsity,
-                ),
-                shared_mem=shared_mem_size
+                )
             )
-
 
             ctx.save_for_backward(input, dictionary, lookup_indices, lookup_coefficients)
             ctx.stride = stride
