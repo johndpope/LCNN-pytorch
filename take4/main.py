@@ -12,7 +12,7 @@ from LCNNConv2d import LCNNConv2d
 
 
 class MyModel(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes,device):
         super(MyModel, self).__init__()
         self.conv1 = LCNNConv2d(3, 64, kernel_size=11, stride=4, padding=2, dictionary_size=100, sparsity=3)
         self.relu = nn.ReLU(inplace=True)
@@ -25,6 +25,8 @@ class MyModel(nn.Module):
         self.fc1 = nn.Linear(256 * 6 * 6, 4096)
         self.fc2 = nn.Linear(4096, 4096)
         self.fc3 = nn.Linear(4096, num_classes)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
     def forward(self, x):
         x = self.maxpool(self.relu(self.conv1(x)))
@@ -117,8 +119,7 @@ val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
 # Update the device assignment for the model and tensors in your main.py
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = MyModel(num_attributes).to(device)
-
+model = MyModel(num_attributes,device)
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 

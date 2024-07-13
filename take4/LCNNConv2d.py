@@ -22,6 +22,7 @@ class LCNNConv2d(nn.Module):
         # Lookup coefficient tensor
         self.lookup_coefficients = nn.Parameter(torch.Tensor(out_channels, *self.kernel_size, sparsity))
         
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -29,7 +30,13 @@ class LCNNConv2d(nn.Module):
         nn.init.kaiming_uniform_(self.lookup_coefficients)
         self.lookup_indices.random_(0, self.dictionary_size)
 
+    
     def forward(self, x):
+        x = x.to(self.device)
+        self.dictionary.data = self.dictionary.data.to(self.device)
+        self.lookup_indices = self.lookup_indices.to(self.device)
+        self.lookup_coefficients.data = self.lookup_coefficients.data.to(self.device)
+        
         # Enforce sparsity before each forward pass
         self.enforce_sparsity()
         
@@ -41,9 +48,9 @@ class LCNNConv2d(nn.Module):
         # Create sparse weight tensor
         weight_indices = torch.stack([
             self.lookup_indices,
-            torch.arange(self.out_channels).view(-1, 1, 1, 1).expand_as(self.lookup_indices),
-            torch.arange(self.kernel_size[0]).view(1, -1, 1, 1).expand_as(self.lookup_indices),
-            torch.arange(self.kernel_size[1]).view(1, 1, -1, 1).expand_as(self.lookup_indices)
+            torch.arange(self.out_channels, device=self.device).view(-1, 1, 1, 1).expand_as(self.lookup_indices),
+            torch.arange(self.kernel_size[0], device=self.device).view(1, -1, 1, 1).expand_as(self.lookup_indices),
+            torch.arange(self.kernel_size[1], device=self.device).view(1, 1, -1, 1).expand_as(self.lookup_indices)
         ], dim=-1).view(-1, 4)
         
         weight_values = self.lookup_coefficients.view(-1)
@@ -52,7 +59,7 @@ class LCNNConv2d(nn.Module):
             weight_indices.t().long(),
             weight_values,
             size=(self.dictionary_size, self.out_channels, *self.kernel_size)
-        )
+        ).to(self.device)
         
         # Perform sparse matrix multiplication
         output = torch.sparse.mm(sparse_weight.view(self.out_channels, -1), 
