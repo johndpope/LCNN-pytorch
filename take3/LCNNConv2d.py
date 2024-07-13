@@ -40,16 +40,18 @@ class LCNNConv2d(nn.Module):
         
         batch_size, _, output_height, output_width = input_dictionary.shape
         input_dictionary = input_dictionary.view(batch_size, self.dictionary_size, -1)
-        print(f"Input dictionary shape after reshaping: {input_dictionary.shape}")
+        input_dictionary = input_dictionary.transpose(1, 2)  # Transpose dimensions 1 and 2
+        print(f"Input dictionary shape after reshaping and transposing: {input_dictionary.shape}")
         
         lookup_weights_sparse = self.lookup_weights.to_sparse()
         print(f"Lookup weights sparse shape: {lookup_weights_sparse.shape}")
         
-        output = torch.sparse.mm(lookup_weights_sparse, input_dictionary)
+        output = torch.sparse.mm(input_dictionary, lookup_weights_sparse.t())  # Transpose the sparse lookup weights
         print(f"Output shape after sparse matrix multiplication: {output.shape}")
         
-        output = output.view(batch_size, self.out_channels, output_height, output_width)
-        print(f"Output shape after reshaping: {output.shape}")
+        output = output.view(batch_size, output_height, output_width, self.out_channels)
+        output = output.permute(0, 3, 1, 2)  # Permute dimensions to (batch_size, out_channels, height, width)
+        print(f"Output shape after reshaping and permuting: {output.shape}")
         
         output = output + self.bias.view(1, -1, 1, 1)
         print(f"Final output shape: {output.shape}")
