@@ -56,9 +56,19 @@ torch::Tensor sparse_conv2d_cuda(
     auto in_width = input.size(2);
     auto in_channels = input.size(3);
 
-    auto out_height = (in_height - dense_shape[0] + strides[0]) / strides[0];
-    auto out_width = (in_width - dense_shape[1] + strides[1]) / strides[1];
-    auto out_channels = dense_shape[3];
+    auto out_height = (in_height - dense_shape[1] + strides[0]) / strides[0];
+    auto out_width = (in_width - dense_shape[2] + strides[1]) / strides[1];
+    auto out_channels = dense_shape[0];
+
+    std::cout << "CUDA Implementation:" << std::endl;
+    std::cout << "Input shape: [" << batch_size << ", " << in_height << ", " << in_width << ", " << in_channels << "]" << std::endl;
+    std::cout << "Dense shape: [" << dense_shape[0] << ", " << dense_shape[1] << ", " << dense_shape[2] << ", " << dense_shape[3] << "]" << std::endl;
+    std::cout << "Strides: [" << strides[0] << ", " << strides[1] << "]" << std::endl;
+    std::cout << "Calculated output shape: [" << batch_size << ", " << out_height << ", " << out_width << ", " << out_channels << "]" << std::endl;
+
+    if (out_height <= 0 || out_width <= 0) {
+        throw std::runtime_error("Invalid output dimensions: " + std::to_string(out_height) + "x" + std::to_string(out_width));
+    }
 
     auto output = torch::zeros({batch_size, out_height, out_width, out_channels}, input.options());
 
@@ -77,7 +87,7 @@ torch::Tensor sparse_conv2d_cuda(
         out_height,
         out_width,
         out_channels,
-        dense_shape[0],
+        dense_shape[1],  // kernel size
         strides[0],
         weight_indices.size(0)
     );
