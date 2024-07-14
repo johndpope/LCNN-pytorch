@@ -34,6 +34,7 @@ Self CUDA time total: 38.076ms
 ```shell
 /take2
 python setup.py install
+python train.py
 ```
 this sonnect implementation does reduce memory by 20% - but not showing improvements in speed.
 
@@ -80,4 +81,10 @@ Wearing_Lipstick: False
 Wearing_Necklace: False
 Wearing_Necktie: False
 Young: True
+```
+
+
+**Tensorflow port - vanilla **
+```shell
+take6/train.py
 ```

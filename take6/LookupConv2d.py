@@ -157,12 +157,12 @@ def lookup_conv2d(x, num_outputs, kernel_size, stride, dict_size, padding=1,
     return output
 
 # Usage example:
-x = torch.randn(1, 32, 32, 3).cuda()  # Move to GPU if using CUDA
-print("\nInput tensor:")
-print(f"  Shape: {x.shape}")
-print(f"  Device: {x.device}")
-print(f"  dtype: {x.dtype}")
+# x = torch.randn(1, 32, 32, 3).cuda()  # Move to GPU if using CUDA
+# print("\nInput tensor:")
+# print(f"  Shape: {x.shape}")
+# print(f"  Device: {x.device}")
+# print(f"  dtype: {x.dtype}")
 
-out = lookup_conv2d(x, num_outputs=64, kernel_size=3, stride=1, dict_size=256, use_cuda=True)
-print(f"\nFinal output shape: {out.shape}")
-print(f"Final output device: {out.device}")
+# out = lookup_conv2d(x, num_outputs=64, kernel_size=3, stride=1, dict_size=256, use_cuda=True)
+# print(f"\nFinal output shape: {out.shape}")
+# print(f"Final output device: {out.device}")

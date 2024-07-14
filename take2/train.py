@@ -31,7 +31,7 @@ if __name__ == '__main__':
     scaler = GradScaler()
 
     # Load the dataset
-    dataset = load_dataset("lansinuote/gen.1.celeba", cache_dir='./cache')
+    dataset = load_dataset("lansinuote/gen.1.celeba", cache_dir='./../cache')
 
     # Define image transformations
     transform = transforms.Compose([
