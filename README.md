@@ -84,7 +84,7 @@ Young: True
 ```
 
 
-**Tensorflow port - vanilla **
+**Tensorflow port - vanilla**
 ```shell
 take6/train.py
 ```
