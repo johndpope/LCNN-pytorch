@@ -36,3 +36,48 @@ Self CUDA time total: 38.076ms
 python setup.py install
 ```
 this sonnect implementation does reduce memory by 20% - but not showing improvements in speed.
+
+```shell
+python inference.py
+Loaded best model from epoch 2 with validation loss: 0.5942
+5_o_Clock_Shadow: False
+Arched_Eyebrows: False
+Attractive: False
+Bags_Under_Eyes: False
+Bald: False
+Bangs: False
+Big_Lips: True
+Big_Nose: False
+Black_Hair: False
+Blond_Hair: False
+Blurry: False
+Brown_Hair: False
+Bushy_Eyebrows: False
+Chubby: False
+Double_Chin: False
+Eyeglasses: False
+Goatee: False
+Gray_Hair: False
+Heavy_Makeup: False
+High_Cheekbones: False
+Male: False
+Mouth_Slightly_Open: False
+Mustache: False
+Narrow_Eyes: False
+No_Beard: True
+Oval_Face: False
+Pale_Skin: False
+Pointy_Nose: False
+Receding_Hairline: False
+Rosy_Cheeks: False
+Sideburns: False
+Smiling: False
+Straight_Hair: False
+Wavy_Hair: False
+Wearing_Earrings: False
+Wearing_Hat: False
+Wearing_Lipstick: False
+Wearing_Necklace: False
+Wearing_Necktie: False
+Young: True
+```
